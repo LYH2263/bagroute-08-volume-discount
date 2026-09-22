@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -12,7 +12,16 @@ class DeliveryRoute(Base):
     name: Mapped[str] = mapped_column(String(80), unique=True)
     max_weight_kg: Mapped[float] = mapped_column(Float, default=8.0)
     max_volume_l: Mapped[float] = mapped_column(Float, default=20.0)
+    volume_discount_enabled: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    volume_discount_ratio: Mapped[float] = mapped_column(Float, default=1.0, nullable=False)
     stops: Mapped[list["SubscriberStop"]] = relationship(back_populates="route")
+
+    @property
+    def effective_max_volume_l(self) -> float:
+        """装袋实际使用的体积上限：开启折扣时为原上限乘折扣比例。"""
+        if self.volume_discount_enabled:
+            return self.max_volume_l * self.volume_discount_ratio
+        return self.max_volume_l
 
 
 class SubscriberStop(Base):
@@ -33,6 +42,9 @@ class PackBag(Base):
     bag_index: Mapped[int] = mapped_column(Integer)
     weight_kg: Mapped[float] = mapped_column(Float)
     volume_l: Mapped[float] = mapped_column(Float)
+    # 本次装袋实际生效的体积限额（开启折扣时为原上限×比例），落库保证袋重页口径一致
+    volume_discount_applied: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    volume_limit_l: Mapped[float] = mapped_column(Float, default=0.0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     items: Mapped[list["BagItem"]] = relationship(back_populates="bag")
 

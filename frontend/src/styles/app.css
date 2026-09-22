@@ -250,3 +250,22 @@ button {
 }
 .fill { height: 10px; background: #2a3824; border-radius: 2px; overflow: hidden; }
 .fill > span { display: block; height: 100%; background: var(--accent); }
+
+/* 体积限额临时折扣 */
+.discount-switch { display: inline-flex; align-items: center; gap: .35rem; font-size: .85rem; }
+.discount-switch input { width: auto; padding: 0; accent-color: var(--route-leaf); }
+.discount-ratio { width: 5.2rem; padding: .35rem .45rem; }
+.discount-badge {
+  font-size: .78rem; color: var(--route-muted);
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: .3rem .7rem; background: #121a10;
+}
+.discount-badge--on {
+  color: #142008; background: var(--route-leaf);
+  border-color: #d4f08a; font-weight: 700;
+}
+.discount-tag {
+  margin-left: .55rem; font-size: .72rem; font-weight: 700;
+  color: #142008; background: var(--route-leaf);
+  border-radius: 4px; padding: .08rem .4rem;
+}

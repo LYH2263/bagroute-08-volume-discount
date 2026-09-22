@@ -1,5 +1,5 @@
 from datetime import datetime
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class RouteOut(BaseModel):
@@ -7,7 +7,15 @@ class RouteOut(BaseModel):
     name: str
     max_weight_kg: float
     max_volume_l: float
+    volume_discount_enabled: bool
+    volume_discount_ratio: float
+    effective_max_volume_l: float
     model_config = {"from_attributes": True}
+
+
+class RouteDiscountUpdate(BaseModel):
+    volume_discount_enabled: bool
+    volume_discount_ratio: float = Field(gt=0.0, le=1.0)
 
 
 class StopOut(BaseModel):
@@ -34,6 +42,8 @@ class BagOut(BaseModel):
     weight_kg: float
     volume_l: float
     items: list[BagItemOut] = []
+    volume_discount_applied: bool = False
+    volume_limit_l: float | None = None
     model_config = {"from_attributes": True}
 
 

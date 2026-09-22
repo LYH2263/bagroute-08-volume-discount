@@ -9,7 +9,15 @@ def seed_if_empty(db: Session) -> None:
         return
     r1 = DeliveryRoute(name="城东晨线", max_weight_kg=8.0, max_volume_l=18.0)
     r2 = DeliveryRoute(name="园区午线", max_weight_kg=6.0, max_volume_l=14.0)
-    db.add_all([r1, r2])
+    # 折扣体验线：两笔体积合计 8L，原上限 10L 可同袋；打开 0.7 折扣后上限 7L，必须分两袋
+    r3 = DeliveryRoute(
+        name="折扣体验线",
+        max_weight_kg=8.0,
+        max_volume_l=10.0,
+        volume_discount_enabled=False,
+        volume_discount_ratio=0.7,
+    )
+    db.add_all([r1, r2, r3])
     db.flush()
     db.add_all(
         [
@@ -21,6 +29,8 @@ def seed_if_empty(db: Session) -> None:
             SubscriberStop(route_id=r2.id, seq=1, name="A 座前台", weight_kg=1.5, volume_l=3.0),
             SubscriberStop(route_id=r2.id, seq=2, name="B 座茶水间", weight_kg=2.0, volume_l=4.0),
             SubscriberStop(route_id=r2.id, seq=3, name="地下车库岗亭", weight_kg=2.8, volume_l=5.0),
+            SubscriberStop(route_id=r3.id, seq=1, name="折扣点甲", weight_kg=1.0, volume_l=4.0),
+            SubscriberStop(route_id=r3.id, seq=2, name="折扣点乙", weight_kg=1.0, volume_l=4.0),
         ]
     )
     db.commit()

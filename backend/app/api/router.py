@@ -9,6 +9,7 @@ from app.schemas.schemas import (
     BagOut,
     PackRequest,
     RejectOut,
+    RouteDiscountUpdate,
     RouteOut,
     StopOut,
     WeightOut,
@@ -26,6 +27,18 @@ def health():
 @api_router.get("/routes", response_model=list[RouteOut])
 def routes(db: Session = Depends(get_db)):
     return db.scalars(select(DeliveryRoute).order_by(DeliveryRoute.id)).all()
+
+
+@api_router.patch("/routes/{route_id}/discount", response_model=RouteOut)
+def update_route_discount(route_id: int, body: RouteDiscountUpdate, db: Session = Depends(get_db)):
+    route = db.get(DeliveryRoute, route_id)
+    if not route:
+        raise HTTPException(404, "路线不存在")
+    route.volume_discount_enabled = body.volume_discount_enabled
+    route.volume_discount_ratio = body.volume_discount_ratio
+    db.commit()
+    db.refresh(route)
+    return route
 
 
 @api_router.get("/stops", response_model=list[StopOut])
@@ -58,7 +71,9 @@ def pack(body: PackRequest, db: Session = Depends(get_db)):
     items = [
         StopItem(s.id, s.seq, s.weight_kg, s.volume_l, s.name) for s in stops
     ]
-    result = pack_route(items, route.max_weight_kg, route.max_volume_l)
+    effective_volume = route.effective_max_volume_l
+    discount_applied = route.volume_discount_enabled
+    result = pack_route(items, route.max_weight_kg, effective_volume)
     out_bags: list[PackBag] = []
     for bag in result.bags:
         row = PackBag(
@@ -66,6 +81,8 @@ def pack(body: PackRequest, db: Session = Depends(get_db)):
             bag_index=bag.bag_index,
             weight_kg=round(bag.weight_kg, 3),
             volume_l=round(bag.volume_l, 3),
+            volume_discount_applied=discount_applied,
+            volume_limit_l=round(effective_volume, 3),
         )
         db.add(row)
         db.flush()
@@ -97,6 +114,8 @@ def pack(body: PackRequest, db: Session = Depends(get_db)):
             bag_index=b.bag_index,
             weight_kg=b.weight_kg,
             volume_l=b.volume_l,
+            volume_discount_applied=b.volume_discount_applied,
+            volume_limit_l=b.volume_limit_l,
             items=[
                 BagItemOut(
                     stop_id=i.stop_id,
@@ -124,6 +143,8 @@ def bags(db: Session = Depends(get_db)):
                 bag_index=b.bag_index,
                 weight_kg=b.weight_kg,
                 volume_l=b.volume_l,
+                volume_discount_applied=b.volume_discount_applied,
+                volume_limit_l=b.volume_limit_l,
                 items=[
                     BagItemOut(
                         stop_id=i.stop_id,
@@ -150,6 +171,8 @@ def weights(db: Session = Depends(get_db)):
     for b in bags:
         route = db.get(DeliveryRoute, b.route_id)
         assert route
+        # 体积填充分母必须与该袋装袋时使用的限额一致；旧数据未落库则回退到当前有效上限
+        volume_denominator = b.volume_limit_l or route.effective_max_volume_l
         out.append(
             WeightOut(
                 bag_id=b.id,
@@ -158,7 +181,7 @@ def weights(db: Session = Depends(get_db)):
                 weight_kg=b.weight_kg,
                 volume_l=b.volume_l,
                 fill_weight_pct=round(100 * b.weight_kg / route.max_weight_kg, 1),
-                fill_volume_pct=round(100 * b.volume_l / route.max_volume_l, 1),
+                fill_volume_pct=round(100 * b.volume_l / volume_denominator, 1),
             )
         )
     return out
