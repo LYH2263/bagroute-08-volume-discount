@@ -28,6 +28,18 @@ class PackResult:
     rejects: list[tuple[StopItem, str]]
 
 
+def effective_volume_limit(
+    max_volume: float, discount_enabled: bool, discount_ratio: float
+) -> float:
+    """装袋实际体积上限：开启临时折扣时按折扣比例收缩，关闭时恢复原上限。
+
+    重量上限不走这里——折扣只作用于体积。
+    """
+    if not discount_enabled:
+        return max_volume
+    return max_volume * discount_ratio
+
+
 def can_fit(bag: Bag, item: StopItem, max_weight: float, max_volume: float) -> bool:
     return (
         bag.weight_kg + item.weight_kg <= max_weight + 1e-9
